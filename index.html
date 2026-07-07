@@ -148,12 +148,12 @@
   .total-card .v small{font-size:20px;color:var(--muted)}
 
   /* mini trend bars */
-  .trend{display:flex;align-items:flex-end;gap:8px;height:120px;margin-top:18px;padding:0 2px}
+  .trend{display:flex;align-items:flex-end;gap:8px;height:118px;margin-top:18px;padding:0 2px}
   .trend .col{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer}
-  .trend .track{width:100%;height:92px;display:flex;align-items:flex-end;justify-content:center}
-  .trend .stack{width:72%;max-width:28px;border-radius:6px 6px 3px 3px;overflow:hidden;font-size:0;line-height:0}
-  .trend .seg{display:block;width:100%}
-  .trend .col.cur .stack{outline:2px solid var(--ink);outline-offset:1.5px}
+  .trend .bar-track{width:100%;height:88px;display:flex;align-items:flex-end;justify-content:center}
+  .trend .bar{width:70%;max-width:26px;background:var(--accent);border-radius:6px 6px 3px 3px;min-height:3px;
+    transition:height .3s ease}
+  .trend .col.cur .bar{background:var(--ink)}
   .trend .col.cur .tlab{color:var(--ink)}
   .trend .tlab{font-size:10.5px;color:var(--muted);font-weight:600;text-align:center;line-height:1.15}
 
@@ -382,7 +382,6 @@
   </div>
 
   <div class="trend" id="trendChart"></div>
-  <div class="legend" id="trendLegend"></div>
 
   <div class="catfilter" id="trendCatFilter">
     <button class="catfilter-btn">All categories ▾</button>
@@ -801,49 +800,20 @@ function renderTrends(){
   $("#trendCur").textContent=cur;
   $("#trendTotal").textContent = fmt(sum(filtered));
 
-  // last 8 periods, filtered
-  const N=8, periods=[];
+  // simple bar chart: total spend per period (last 8), respecting the category filter
+  const N=8, cols=[];
   for(let i=N-1;i>=0;i--){ const o=trendOffset-i; const p=entriesForPeriod(trendMode,o);
-    periods.push({o, ref:p.ref, list:p.list.filter(inTrend)}); }
-
-  // decide which categories get their own stack colour (top 8), rest -> Other
-  const catTotals={};
-  periods.forEach(p=>p.list.forEach(e=>{ if(e.category) catTotals[e.category]=(catTotals[e.category]||0)+e.amount; }));
-  let series = trendCats.size>0 ? [...trendCats] : Object.keys(catTotals);
-  series.sort((a,b)=>(catTotals[b]||0)-(catTotals[a]||0));
-  const stackCats = series.slice(0,8);
-  const hasOther = series.length>8;
-  const colorOf={}; stackCats.forEach((c,i)=>colorOf[c]=PALETTE[i%PALETTE.length]);
-
-  const colTotals = periods.map(p=>sum(p.list));
-  const maxT = Math.max(1,...colTotals);
-  const H=92;
-  $("#trendChart").innerHTML = periods.map((p,idx)=>{
-    const T=colTotals[idx], colH=Math.round(T/maxT*H);
-    const cls=p.o===trendOffset?"cur":"";
-    const t = trendMode==="week"?`${MON[p.ref.getMonth()]}<br>${p.ref.getDate()}`:`${MON[p.ref.getMonth()]}`;
-    let segs="";
-    if(T>0 && colH>0){
-      const amt={}; p.list.forEach(e=>{ amt[e.category]=(amt[e.category]||0)+e.amount; });
-      const parts=[];
-      stackCats.forEach(c=>{ const a=amt[c]||0; if(a>0) parts.push({h:Math.max(1,Math.round(a/T*colH)),color:colorOf[c]}); });
-      let o=0; if(hasOther){ for(const k in amt){ if(!(k in colorOf)) o+=amt[k]; } }
-      // DOM top→bottom: Other first, then smallest→largest, so the biggest sits at the bottom
-      const ordered=[];
-      if(o>0) ordered.push({h:Math.max(1,Math.round(o/T*colH)),color:OTHER_COLOR});
-      parts.reverse().forEach(pt=>ordered.push(pt));
-      segs=ordered.map(s=>`<div class="seg" style="height:${s.h}px;background:${s.color}"></div>`).join("");
-    }
-    return `<div class="col ${cls}" data-off="${p.o}"><div class="track"><div class="stack">${segs}</div></div><div class="tlab">${t}</div></div>`;
+    cols.push({o, ref:p.ref, total:sum(p.list.filter(inTrend))}); }
+  const max=Math.max(1,...cols.map(c=>c.total));
+  $("#trendChart").innerHTML = cols.map(c=>{
+    const h=Math.round(c.total/max*88);
+    const cls=c.o===trendOffset?"cur":"";
+    const t = trendMode==="week"?`${MON[c.ref.getMonth()]}<br>${c.ref.getDate()}`:`${MON[c.ref.getMonth()]}`;
+    return `<div class="col ${cls}" data-off="${c.o}"><div class="bar-track"><div class="bar" style="height:${h}px"></div></div><div class="tlab">${t}</div></div>`;
   }).join("");
   $("#trendChart").querySelectorAll(".col").forEach(col=>{
     col.onclick=()=>{ trendOffset=parseInt(col.dataset.off); deepCat=null; renderTrends(); };
   });
-
-  // legend
-  const items = stackCats.map(c=>`<div class="item"><span class="sw" style="background:${colorOf[c]}"></span>${c}</div>`);
-  if(hasOther) items.push(`<div class="item"><span class="sw" style="background:${OTHER_COLOR}"></span>Other</div>`);
-  $("#trendLegend").innerHTML = items.join("");
 
   // body: deep-dive OR breakdown of the selected period
   if(deepCat){
