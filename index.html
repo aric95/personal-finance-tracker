@@ -151,9 +151,8 @@
   .trend{display:flex;align-items:flex-end;gap:8px;height:120px;margin-top:18px;padding:0 2px}
   .trend .col{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer}
   .trend .track{width:100%;height:92px;display:flex;align-items:flex-end;justify-content:center}
-  .trend .stack{width:72%;max-width:28px;display:flex;flex-direction:column-reverse;
-    border-radius:6px 6px 3px 3px;overflow:hidden;min-height:2px}
-  .trend .seg{width:100%}
+  .trend .stack{width:72%;max-width:28px;border-radius:6px 6px 3px 3px;overflow:hidden;font-size:0;line-height:0}
+  .trend .seg{display:block;width:100%}
   .trend .col.cur .stack{outline:2px solid var(--ink);outline-offset:1.5px}
   .trend .col.cur .tlab{color:var(--ink)}
   .trend .tlab{font-size:10.5px;color:var(--muted);font-weight:600;text-align:center;line-height:1.15}
@@ -170,6 +169,11 @@
   .donut-center .v small{font-size:16px;color:var(--muted)}
   .cat-row .name .swatch{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:9px;
     vertical-align:middle;flex-shrink:0}
+  .donut .dseg{cursor:pointer}
+  #chartTip{position:fixed;z-index:70;background:var(--ink);color:#fff;padding:7px 11px;border-radius:9px;
+    font-size:12.5px;font-weight:600;pointer-events:none;opacity:0;transition:opacity .12s;white-space:nowrap;
+    transform:translate(-50%,-135%);box-shadow:var(--shadow)}
+  #chartTip.show{opacity:1}
 
   .legend{display:flex;flex-wrap:wrap;gap:7px 14px;margin-top:14px;padding:0 2px}
   .legend .item{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-soft);font-weight:500}
@@ -495,6 +499,7 @@
 </nav>
 
 <datalist id="detailsList"></datalist>
+<div id="chartTip"></div>
 <div class="toast" id="toast"></div>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -535,13 +540,15 @@ const CONFIG = {
 /* ------------------------------ state ----------------------------- */
 const KEY = "ledger_entries_v1";
 let entries = load();
+const DEFAULT_EXCLUDED = ["House Costs","Debt Payments","International"];
+const defaultSelection = () => new Set(CONFIG.categories.map(c=>c.name).filter(n=>!DEFAULT_EXCLUDED.includes(n)));
 let trendMode = "week";       // week | month
 let trendOffset = 0;          // 0 = current period, -1 = previous, ...
-let trendCats = new Set();    // empty = all categories
+let trendCats = defaultSelection();   // empty = all categories
 let deepCat = null;           // category being deep-dived in trends
 let catMode = "month";        // week | month | all
 let catOffset = 0;
-let catCats = new Set();      // empty = all categories
+let catCats = defaultSelection();     // empty = all categories
 
 // Distinct, on-brand colors for stacked categories (+ grey for "Other")
 const PALETTE = ["#0E8C7B","#D98A1B","#4B6BB5","#C0492F","#5E9E5A","#8A6BB0","#3E9BC0","#B07A4F"];
@@ -813,16 +820,21 @@ function renderTrends(){
   const H=92;
   $("#trendChart").innerHTML = periods.map((p,idx)=>{
     const T=colTotals[idx], colH=Math.round(T/maxT*H);
-    const amt={}; p.list.forEach(e=>{ amt[e.category]=(amt[e.category]||0)+e.amount; });
-    let segs="";
-    stackCats.forEach(c=>{ const a=amt[c]||0; if(a>0){ const h=T?Math.max(1,Math.round(a/T*colH)):0;
-      segs+=`<span class="seg" style="height:${h}px;background:${colorOf[c]}"></span>`; } });
-    if(hasOther){ let o=0; for(const k in amt){ if(!(k in colorOf)) o+=amt[k]; }
-      if(o>0){ const h=T?Math.max(1,Math.round(o/T*colH)):0;
-        segs+=`<span class="seg" style="height:${h}px;background:${OTHER_COLOR}"></span>`; } }
     const cls=p.o===trendOffset?"cur":"";
     const t = trendMode==="week"?`${MON[p.ref.getMonth()]}<br>${p.ref.getDate()}`:`${MON[p.ref.getMonth()]}`;
-    return `<div class="col ${cls}" data-off="${p.o}"><div class="track"><div class="stack" style="height:${colH}px">${segs}</div></div><div class="tlab">${t}</div></div>`;
+    let segs="";
+    if(T>0 && colH>0){
+      const amt={}; p.list.forEach(e=>{ amt[e.category]=(amt[e.category]||0)+e.amount; });
+      const parts=[];
+      stackCats.forEach(c=>{ const a=amt[c]||0; if(a>0) parts.push({h:Math.max(1,Math.round(a/T*colH)),color:colorOf[c]}); });
+      let o=0; if(hasOther){ for(const k in amt){ if(!(k in colorOf)) o+=amt[k]; } }
+      // DOM top→bottom: Other first, then smallest→largest, so the biggest sits at the bottom
+      const ordered=[];
+      if(o>0) ordered.push({h:Math.max(1,Math.round(o/T*colH)),color:OTHER_COLOR});
+      parts.reverse().forEach(pt=>ordered.push(pt));
+      segs=ordered.map(s=>`<div class="seg" style="height:${s.h}px;background:${s.color}"></div>`).join("");
+    }
+    return `<div class="col ${cls}" data-off="${p.o}"><div class="track"><div class="stack">${segs}</div></div><div class="tlab">${t}</div></div>`;
   }).join("");
   $("#trendChart").querySelectorAll(".col").forEach(col=>{
     col.onclick=()=>{ trendOffset=parseInt(col.dataset.off); deepCat=null; renderTrends(); };
@@ -911,18 +923,25 @@ function renderCats(){
 
   // donut: category split, total in the centre
   const R=52.5, C=2*Math.PI*R;
-  let svg=`<circle cx="60" cy="60" r="${R}" stroke="var(--line)"></circle>`;
-  const segs = cats.slice(0,8).map(c=>({v:c.v,color:colorOf[c.name]}));
+  let svg=`<circle cx="60" cy="60" r="${R}" stroke="var(--line)" style="pointer-events:none"></circle>`;
+  const segs = cats.slice(0,8).map(c=>({name:c.name,v:c.v,color:colorOf[c.name]}));
   const otherSum = cats.slice(8).reduce((a,c)=>a+c.v,0);
-  if(otherSum>0) segs.push({v:otherSum,color:OTHER_COLOR});
+  if(otherSum>0) segs.push({name:"Other",v:otherSum,color:OTHER_COLOR});
   let off=0;
   segs.forEach(s=>{
     if(total<=0 || s.v<=0) return;
-    const len=s.v/total*C;
-    svg+=`<circle cx="60" cy="60" r="${R}" stroke="${s.color}" stroke-dasharray="${len.toFixed(2)} ${(C-len).toFixed(2)}" stroke-dashoffset="${(-off).toFixed(2)}"></circle>`;
+    const len=s.v/total*C, pct=Math.round(s.v/total*100);
+    svg+=`<circle class="dseg" cx="60" cy="60" r="${R}" stroke="${s.color}" stroke-dasharray="${len.toFixed(2)} ${(C-len).toFixed(2)}" stroke-dashoffset="${(-off).toFixed(2)}" data-cat="${s.name}" data-amt="${s.v}" data-pct="${pct}"></circle>`;
     off+=len;
   });
   $("#catDonut").innerHTML=svg;
+  $("#catDonut").querySelectorAll(".dseg").forEach(seg=>{
+    const show=(x,y)=>showTip(`${seg.dataset.cat} · ${cur}${fmt(+seg.dataset.amt)} · ${seg.dataset.pct}%`,x,y);
+    seg.addEventListener("mouseenter",e=>show(e.clientX,e.clientY));
+    seg.addEventListener("mousemove",e=>show(e.clientX,e.clientY));
+    seg.addEventListener("mouseleave",hideTip);
+    seg.addEventListener("touchstart",e=>{ const t=e.touches[0]; show(t.clientX,t.clientY); scheduleHideTip(); },{passive:true});
+  });
 
   if(!cats.length){ $("#catBody").innerHTML=`<div class="empty">No spending recorded for this period.</div>`; return; }
   const max=cats[0].v;
@@ -1016,6 +1035,12 @@ $("#catPeriodSel").onchange=()=>{ catOffset=parseInt($("#catPeriodSel").value)||
 let toastT;
 function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.add("show");
   clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove("show"),1500); }
+
+let tipT;
+function showTip(text,x,y){ const t=$("#chartTip"); t.textContent=text;
+  t.style.left=x+"px"; t.style.top=y+"px"; t.classList.add("show"); }
+function hideTip(){ $("#chartTip").classList.remove("show"); }
+function scheduleHideTip(){ clearTimeout(tipT); tipT=setTimeout(hideTip,1800); }
 
 function refreshDetailsList(){
   const dl=$("#detailsList"); if(!dl) return;
