@@ -148,14 +148,42 @@
   .total-card .v small{font-size:20px;color:var(--muted)}
 
   /* mini trend bars */
-  .trend{display:flex;align-items:flex-end;gap:8px;height:118px;margin-top:18px;padding:0 2px}
+  .trend{display:flex;align-items:flex-end;gap:8px;height:120px;margin-top:18px;padding:0 2px}
   .trend .col{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer}
-  .trend .bar-track{width:100%;height:88px;display:flex;align-items:flex-end;justify-content:center}
-  .trend .bar{width:70%;max-width:26px;background:var(--accent);border-radius:6px 6px 3px 3px;min-height:3px;
-    transition:height .3s ease}
-  .trend .col.cur .bar{background:var(--ink)}
-  .trend .col.sel .bar{background:var(--amber)}
+  .trend .track{width:100%;height:92px;display:flex;align-items:flex-end;justify-content:center}
+  .trend .stack{width:72%;max-width:28px;display:flex;flex-direction:column-reverse;
+    border-radius:6px 6px 3px 3px;overflow:hidden;min-height:2px}
+  .trend .seg{width:100%}
+  .trend .col.cur .stack{outline:2px solid var(--ink);outline-offset:1.5px}
+  .trend .col.cur .tlab{color:var(--ink)}
   .trend .tlab{font-size:10.5px;color:var(--muted);font-weight:600;text-align:center;line-height:1.15}
+
+  .donut-card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:22px 20px;
+    margin-top:12px;box-shadow:var(--shadow);display:flex;justify-content:center}
+  .donut-wrap{position:relative;width:210px;height:210px;max-width:60vw;max-height:60vw}
+  .donut{width:100%;height:100%;transform:rotate(-90deg)}
+  .donut circle{fill:none;stroke-width:15}
+  .donut-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;text-align:center}
+  .donut-center .k{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);font-weight:600}
+  .donut-center .v{font-family:var(--num);font-size:27px;font-weight:700;letter-spacing:-.02em;margin-top:3px}
+  .donut-center .v small{font-size:16px;color:var(--muted)}
+  .cat-row .name .swatch{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:9px;
+    vertical-align:middle;flex-shrink:0}
+
+  .legend{display:flex;flex-wrap:wrap;gap:7px 14px;margin-top:14px;padding:0 2px}
+  .legend .item{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-soft);font-weight:500}
+  .legend .sw{width:11px;height:11px;border-radius:3px;flex-shrink:0}
+
+  .catfilter{margin-top:16px}
+  .catfilter-btn{width:100%;text-align:left;background:var(--card);border:1px solid var(--line-strong);
+    border-radius:12px;padding:12px 14px;font-size:14px;font-weight:600;color:var(--ink-soft);cursor:pointer}
+  .catfilter-panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;
+    margin-top:8px;box-shadow:var(--shadow)}
+  .catfilter-panel.hidden{display:none}
+  .chip.mini{padding:7px 11px;font-size:13px}
+  .catfilter-clear{margin-top:10px;background:none;border:none;color:var(--danger);font-weight:600;
+    font-size:13px;cursor:pointer;padding:4px}
 
   /* category breakdown rows */
   .cat-row{margin-bottom:12px}
@@ -168,9 +196,6 @@
   .bar-line span{display:block;height:100%;background:var(--accent);border-radius:6px;transition:width .35s ease}
   .cat-row.lead .bar-line span{background:var(--amber)}
   .cat-row.tappable{cursor:pointer}
-
-  .filter-row{display:flex;gap:10px;margin-top:16px}
-  .filter-row select{flex:1}
 
   .back-link{display:inline-flex;align-items:center;gap:6px;color:var(--accent-ink);font-weight:600;
     font-size:14px;background:none;border:none;cursor:pointer;padding:8px 0;margin-top:6px}
@@ -248,6 +273,11 @@
   .gate-fine{color:var(--muted);font-size:12px;margin-top:20px}
   .linkbtn{background:none;border:none;color:var(--accent-ink);font-weight:600;font-size:13px;cursor:pointer;padding:0}
 
+  #catPeriodNav{padding:6px}
+  .period-sel{flex:1;border:none;background:none;font-family:var(--font);font-size:15px;font-weight:700;
+    color:var(--ink);text-align:center;text-align-last:center;-webkit-appearance:none;appearance:none;
+    padding:8px 4px;cursor:pointer;outline:none}
+
   .toast{position:fixed;left:50%;bottom:calc(var(--nav-h) + 20px + env(safe-area-inset-bottom));
     transform:translateX(-50%) translateY(20px);background:var(--ink);color:#fff;padding:11px 20px;
     border-radius:999px;font-size:14px;font-weight:600;opacity:0;pointer-events:none;transition:all .25s ease;z-index:40;
@@ -309,7 +339,7 @@
 
   <div class="field">
     <label>Details <span style="color:var(--muted);font-weight:500;text-transform:none;letter-spacing:0">(optional)</span></label>
-    <input id="details" class="txt" type="text" placeholder="e.g. Whole Foods Market" autocomplete="off">
+    <input id="details" class="txt" type="text" list="detailsList" placeholder="e.g. Whole Foods Market" autocomplete="off">
   </div>
 
   <button class="save-btn" id="saveBtn" disabled>Save expense</button>
@@ -348,9 +378,14 @@
   </div>
 
   <div class="trend" id="trendChart"></div>
+  <div class="legend" id="trendLegend"></div>
 
-  <div class="filter-row">
-    <select id="catFilter" class="txt"></select>
+  <div class="catfilter" id="trendCatFilter">
+    <button class="catfilter-btn">All categories ▾</button>
+    <div class="catfilter-panel hidden">
+      <div class="chips catfilter-chips"></div>
+      <button class="catfilter-clear">Clear selection</button>
+    </div>
   </div>
 
   <div id="trendBody"></div>
@@ -359,22 +394,33 @@
 <!-- ============ CATEGORIES ============ -->
 <section class="view" id="view-cats">
   <div class="seg" id="catSeg">
-    <button data-mode="week">This week</button>
-    <button data-mode="month" class="active">This month</button>
+    <button data-mode="week">Weekly</button>
+    <button data-mode="month" class="active">Monthly</button>
     <button data-mode="all">All time</button>
   </div>
 
   <div class="period-nav" id="catPeriodNav">
-    <div class="lbl" id="catPeriodLbl">—</div>
-    <div style="display:flex;gap:6px">
-      <button class="navbtn" id="catPrev">‹</button>
-      <button class="navbtn" id="catNext">›</button>
+    <button class="navbtn" id="catPrev">‹</button>
+    <select class="period-sel" id="catPeriodSel"></select>
+    <button class="navbtn" id="catNext">›</button>
+  </div>
+
+  <div class="catfilter" id="catCatFilter">
+    <button class="catfilter-btn">All categories ▾</button>
+    <div class="catfilter-panel hidden">
+      <div class="chips catfilter-chips"></div>
+      <button class="catfilter-clear">Clear selection</button>
     </div>
   </div>
 
-  <div class="total-card">
-    <div class="k">Total spent</div>
-    <div class="v num"><small id="catCur">$</small><span id="catTotal">0.00</span></div>
+  <div class="donut-card">
+    <div class="donut-wrap">
+      <svg class="donut" viewBox="0 0 120 120" id="catDonut"></svg>
+      <div class="donut-center">
+        <div class="k">Total spent</div>
+        <div class="v num"><small id="catCur">$</small><span id="catTotal">0.00</span></div>
+      </div>
+    </div>
   </div>
 
   <div class="section-head"><h2>Where it went</h2><span class="aux" id="catTopNote"></span></div>
@@ -430,7 +476,7 @@
       <div><label id="eSourceLabel">Payment source</label><select id="eSource" class="txt"></select></div>
     </div></div>
     <div class="field"><label>Details <span style="color:var(--muted);font-weight:500;text-transform:none;letter-spacing:0">(optional)</span></label>
-      <input id="eDetails" class="txt" type="text"></div>
+      <input id="eDetails" class="txt" type="text" list="detailsList" autocomplete="off"></div>
     <button class="save-btn" id="eSave">Save changes</button>
     <button class="del-full" id="eDelete">Delete entry</button>
   </div>
@@ -448,6 +494,7 @@
     <svg viewBox="0 0 24 24"><path d="M12 3v9l6 4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="9"/></svg>Categories</button>
 </nav>
 
+<datalist id="detailsList"></datalist>
 <div class="toast" id="toast"></div>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -490,10 +537,15 @@ const KEY = "ledger_entries_v1";
 let entries = load();
 let trendMode = "week";       // week | month
 let trendOffset = 0;          // 0 = current period, -1 = previous, ...
-let trendFilter = "__all__";
+let trendCats = new Set();    // empty = all categories
 let deepCat = null;           // category being deep-dived in trends
 let catMode = "month";        // week | month | all
 let catOffset = 0;
+let catCats = new Set();      // empty = all categories
+
+// Distinct, on-brand colors for stacked categories (+ grey for "Other")
+const PALETTE = ["#0E8C7B","#D98A1B","#4B6BB5","#C0492F","#5E9E5A","#8A6BB0","#3E9BC0","#B07A4F"];
+const OTHER_COLOR = "#9AA5A0";
 
 const $ = s => document.querySelector(s);
 const fmt = n => n.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -543,6 +595,15 @@ function buildAdd(){
       validate(); };
   });
   $("#amount").addEventListener("input",validate);
+  $("#details").addEventListener("change",()=>{
+    const s=suggestFor($("#details").value); if(!s) return;
+    if(s.source) $("#source").value=s.source;
+    if(s.category && sel.type==="expense"){
+      const match=[...$("#catChips").querySelectorAll(".chip")].find(x=>x.dataset.cat===s.category);
+      if(match){ $("#catChips").querySelectorAll(".chip").forEach(x=>x.classList.remove("active"));
+        match.classList.add("active"); sel.cat=s.category; validate(); }
+    }
+  });
 }
 function validate(){
   const a=parseFloat($("#amount").value);
@@ -662,6 +723,15 @@ function buildEdit(){
       ch.classList.add("active"); edit.cat=ch.dataset.cat; };
   });
   $("#eTypeSeg").querySelectorAll("button").forEach(b=>{ b.onclick=()=>setEditType(b.dataset.type); });
+  $("#eDetails").addEventListener("change",()=>{
+    const s=suggestFor($("#eDetails").value); if(!s) return;
+    if(s.source) $("#eSource").value=s.source;
+    if(s.category && edit.type==="expense"){
+      const match=[...$("#eCat").querySelectorAll(".chip")].find(x=>x.dataset.cat===s.category);
+      if(match){ $("#eCat").querySelectorAll(".chip").forEach(x=>x.classList.remove("active"));
+        match.classList.add("active"); edit.cat=s.category; }
+    }
+  });
   $("#eSave").onclick=saveEdit; $("#eDelete").onclick=deleteEdit; $("#eClose").onclick=closeEdit;
   $("#modal").onclick=(ev)=>{ if(ev.target===$("#modal")) closeEdit(); };
 }
@@ -711,6 +781,8 @@ function byCat(list){
   return Object.entries(m).map(([name,v])=>({name,v})).sort((a,b)=>b.v-a.v);
 }
 
+function inTrend(e){ return trendCats.size===0 || trendCats.has(e.category); }
+
 function renderTrends(){
   const {ref,list} = entriesForPeriod(trendMode,trendOffset);
   const lbl = trendMode==="week"?weekLabel(ref):monthLabel(ref);
@@ -718,44 +790,56 @@ function renderTrends(){
   $("#trendNext").disabled = trendOffset>=0;
   $("#trendTotalK").textContent = trendMode==="week"?"Spent this week":"Spent this month";
 
-  const filtered = trendFilter==="__all__" ? list : list.filter(e=>e.category===trendFilter);
+  const filtered = list.filter(inTrend);
   $("#trendCur").textContent=cur;
   $("#trendTotal").textContent = fmt(sum(filtered));
 
-  // mini history chart: last 8 periods up to selected
-  const N=8, cols=[];
-  for(let i=N-1;i>=0;i--){
-    const o=trendOffset-i;
-    const p=entriesForPeriod(trendMode,o);
-    let l=p.list; if(trendFilter!=="__all__") l=l.filter(e=>e.category===trendFilter);
-    cols.push({o, total:sum(l), ref:p.ref});
-  }
-  const max=Math.max(1,...cols.map(c=>c.total));
-  $("#trendChart").innerHTML = cols.map(c=>{
-    const h=Math.round((c.total/max)*88);
-    const cls = c.o===trendOffset?"cur":"";
-    const t = trendMode==="week"?`${MON[c.ref.getMonth()]}\n${c.ref.getDate()}`:`${MON[c.ref.getMonth()]}`;
-    return `<div class="col ${cls}" data-off="${c.o}"><div class="bar-track"><div class="bar" style="height:${h}px"></div></div><div class="tlab">${t.replace("\n","<br>")}</div></div>`;
+  // last 8 periods, filtered
+  const N=8, periods=[];
+  for(let i=N-1;i>=0;i--){ const o=trendOffset-i; const p=entriesForPeriod(trendMode,o);
+    periods.push({o, ref:p.ref, list:p.list.filter(inTrend)}); }
+
+  // decide which categories get their own stack colour (top 8), rest -> Other
+  const catTotals={};
+  periods.forEach(p=>p.list.forEach(e=>{ if(e.category) catTotals[e.category]=(catTotals[e.category]||0)+e.amount; }));
+  let series = trendCats.size>0 ? [...trendCats] : Object.keys(catTotals);
+  series.sort((a,b)=>(catTotals[b]||0)-(catTotals[a]||0));
+  const stackCats = series.slice(0,8);
+  const hasOther = series.length>8;
+  const colorOf={}; stackCats.forEach((c,i)=>colorOf[c]=PALETTE[i%PALETTE.length]);
+
+  const colTotals = periods.map(p=>sum(p.list));
+  const maxT = Math.max(1,...colTotals);
+  const H=92;
+  $("#trendChart").innerHTML = periods.map((p,idx)=>{
+    const T=colTotals[idx], colH=Math.round(T/maxT*H);
+    const amt={}; p.list.forEach(e=>{ amt[e.category]=(amt[e.category]||0)+e.amount; });
+    let segs="";
+    stackCats.forEach(c=>{ const a=amt[c]||0; if(a>0){ const h=T?Math.max(1,Math.round(a/T*colH)):0;
+      segs+=`<span class="seg" style="height:${h}px;background:${colorOf[c]}"></span>`; } });
+    if(hasOther){ let o=0; for(const k in amt){ if(!(k in colorOf)) o+=amt[k]; }
+      if(o>0){ const h=T?Math.max(1,Math.round(o/T*colH)):0;
+        segs+=`<span class="seg" style="height:${h}px;background:${OTHER_COLOR}"></span>`; } }
+    const cls=p.o===trendOffset?"cur":"";
+    const t = trendMode==="week"?`${MON[p.ref.getMonth()]}<br>${p.ref.getDate()}`:`${MON[p.ref.getMonth()]}`;
+    return `<div class="col ${cls}" data-off="${p.o}"><div class="track"><div class="stack" style="height:${colH}px">${segs}</div></div><div class="tlab">${t}</div></div>`;
   }).join("");
   $("#trendChart").querySelectorAll(".col").forEach(col=>{
     col.onclick=()=>{ trendOffset=parseInt(col.dataset.off); deepCat=null; renderTrends(); };
   });
 
-  // category filter options
-  const opts = [`<option value="__all__">All categories</option>`]
-    .concat(CONFIG.categories.map(c=>`<option value="${c.name}">${c.name}</option>`)).join("");
-  if($("#catFilter").dataset.built!=="1"){ $("#catFilter").innerHTML=opts; $("#catFilter").dataset.built="1";
-    $("#catFilter").onchange=()=>{ trendFilter=$("#catFilter").value; deepCat=null; renderTrends(); }; }
-  $("#catFilter").value=trendFilter;
+  // legend
+  const items = stackCats.map(c=>`<div class="item"><span class="sw" style="background:${colorOf[c]}"></span>${c}</div>`);
+  if(hasOther) items.push(`<div class="item"><span class="sw" style="background:${OTHER_COLOR}"></span>Other</div>`);
+  $("#trendLegend").innerHTML = items.join("");
 
-  // body: breakdown OR deep-dive
+  // body: deep-dive OR breakdown of the selected period
   if(deepCat){
-    const items=[...filtered].filter(e=>e.category===deepCat)
-      .sort((a,b)=>b.date.localeCompare(a.date));
+    const dItems=filtered.filter(e=>e.category===deepCat).sort((a,b)=>b.date.localeCompare(a.date));
     $("#trendBody").innerHTML =
       `<button class="back-link" id="backBtn">‹ Back to breakdown</button>
-       <div class="section-head"><h2>${deepCat}</h2><span class="aux">${cur}${fmt(sum(items))}</span></div>`+
-      (items.length?items.map(e=>`
+       <div class="section-head"><h2>${deepCat}</h2><span class="aux">${cur}${fmt(sum(dItems))}</span></div>`+
+      (dItems.length?dItems.map(e=>`
         <div class="entry"><div class="tag">${iconFor(e.category)}</div>
           <div class="body"><div class="cat">${e.details?esc(e.details):e.category}</div>
           <div class="sub">${niceDate(e.date)}${e.source?" · "+e.source:""}</div></div>
@@ -768,7 +852,7 @@ function renderTrends(){
   const cats=byCat(filtered), total=sum(filtered);
   if(!cats.length){ $("#trendBody").innerHTML=`<div class="empty">No spending in this period.</div>`; return; }
   $("#trendBody").innerHTML =
-    `<div class="section-head"><h2>${trendFilter==="__all__"?"Breakdown":trendFilter}</h2><span class="aux">tap to deep-dive</span></div>`+
+    `<div class="section-head"><h2>Breakdown</h2><span class="aux">tap to deep-dive</span></div>`+
     cats.map((c,i)=>{
       const pct=total?Math.round(c.v/total*100):0;
       return `<div class="cat-row tappable ${i===0?"lead":""}" data-cat="${c.name}">
@@ -782,29 +866,71 @@ function renderTrends(){
 }
 
 /* --------------------------- CATEGORIES --------------------------- */
+function earliestDate(){ let m=null; entries.forEach(e=>{ if(e.type!=="payment" && (!m||e.date<m)) m=e.date; }); return m; }
+function catSpan(){
+  const e=earliestDate(); if(!e) return 0;
+  const d=parse(e), now=new Date();
+  const raw = catMode==="week"
+    ? Math.round((mondayOf(now)-mondayOf(d))/(7*86400000))
+    : (now.getFullYear()-d.getFullYear())*12 + (now.getMonth()-d.getMonth());
+  return Math.min(Math.max(raw,0),120);
+}
+function buildCatPeriods(){
+  const sel=$("#catPeriodSel"); if(!sel) return;
+  const n=catSpan(); let opts="";
+  for(let o=0;o>=-n;o--){
+    const ref = catMode==="week" ? weekRef(o) : monthRef(o);
+    const l = catMode==="week" ? weekLabel(ref) : monthLabel(ref);
+    opts += `<option value="${o}">${l.sub?`${l.main}, ${l.sub}`:l.main}</option>`;
+  }
+  sel.innerHTML=opts;
+  sel.value=String(catOffset);
+}
 function catList(){
-  if(catMode==="all") return {list:spendable(), label:{main:"All time",sub:""}};
-  if(catMode==="week"){ const p=entriesForPeriod("week",catOffset); return {list:p.list,label:weekLabel(p.ref)}; }
-  const p=entriesForPeriod("month",catOffset); return {list:p.list,label:monthLabel(p.ref)};
+  const f = e => catCats.size===0 || catCats.has(e.category);
+  if(catMode==="all") return {list:spendable().filter(f), label:{main:"All time",sub:""}};
+  if(catMode==="week"){ const p=entriesForPeriod("week",catOffset); return {list:p.list.filter(f),label:weekLabel(p.ref)}; }
+  const p=entriesForPeriod("month",catOffset); return {list:p.list.filter(f),label:monthLabel(p.ref)};
 }
 function renderCats(){
-  const {list,label}=catList();
+  const {list}=catList();
   $("#catPeriodNav").style.display = catMode==="all" ? "none":"flex";
-  $("#catPeriodLbl").innerHTML = `${label.main}${label.sub?`<small>${label.sub}</small>`:""}`;
+  if(catMode!=="all") buildCatPeriods();
   $("#catNext").disabled = catOffset>=0;
+  $("#catPrev").disabled = catOffset<=-catSpan();
   $("#catCur").textContent=cur;
   const total=sum(list);
   $("#catTotal").textContent=fmt(total);
 
   const cats=byCat(list);
   $("#catTopNote").textContent = cats.length?`top: ${cats[0].name}`:"";
+
+  // colour the top 8 categories; everything else shares the grey "Other" colour
+  const colorOf={}; cats.slice(0,8).forEach((c,i)=>colorOf[c.name]=PALETTE[i%PALETTE.length]);
+  const swatchFor = name => colorOf[name] || OTHER_COLOR;
+
+  // donut: category split, total in the centre
+  const R=52.5, C=2*Math.PI*R;
+  let svg=`<circle cx="60" cy="60" r="${R}" stroke="var(--line)"></circle>`;
+  const segs = cats.slice(0,8).map(c=>({v:c.v,color:colorOf[c.name]}));
+  const otherSum = cats.slice(8).reduce((a,c)=>a+c.v,0);
+  if(otherSum>0) segs.push({v:otherSum,color:OTHER_COLOR});
+  let off=0;
+  segs.forEach(s=>{
+    if(total<=0 || s.v<=0) return;
+    const len=s.v/total*C;
+    svg+=`<circle cx="60" cy="60" r="${R}" stroke="${s.color}" stroke-dasharray="${len.toFixed(2)} ${(C-len).toFixed(2)}" stroke-dashoffset="${(-off).toFixed(2)}"></circle>`;
+    off+=len;
+  });
+  $("#catDonut").innerHTML=svg;
+
   if(!cats.length){ $("#catBody").innerHTML=`<div class="empty">No spending recorded for this period.</div>`; return; }
   const max=cats[0].v;
   $("#catBody").innerHTML=cats.map((c,i)=>{
     const pct=total?Math.round(c.v/total*100):0;
     const w=Math.round(c.v/max*100);
     return `<div class="cat-row ${i===0?"lead":""}">
-      <div class="top"><div class="name"><span class="rank">${i+1}</span>${iconFor(c.name)} ${c.name}</div>
+      <div class="top"><div class="name"><span class="swatch" style="background:${swatchFor(c.name)}"></span><span class="rank">${i+1}</span>${iconFor(c.name)} ${c.name}</div>
       <div class="val">${cur}${fmt(c.v)}<small>${pct}%</small></div></div>
       <div class="bar-line"><span style="width:${w}%"></span></div></div>`;
   }).join("");
@@ -883,19 +1009,59 @@ $("#catSeg").querySelectorAll("button").forEach(b=>{
   b.onclick=()=>{ $("#catSeg").querySelectorAll("button").forEach(x=>x.classList.remove("active"));
     b.classList.add("active"); catMode=b.dataset.mode; catOffset=0; renderCats(); };
 });
-$("#catPrev").onclick=()=>{ catOffset--; renderCats(); };
+$("#catPrev").onclick=()=>{ if(catOffset>-catSpan()){ catOffset--; renderCats(); } };
 $("#catNext").onclick=()=>{ if(catOffset<0){ catOffset++; renderCats(); } };
+$("#catPeriodSel").onchange=()=>{ catOffset=parseInt($("#catPeriodSel").value)||0; renderCats(); };
 
 let toastT;
 function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.add("show");
   clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove("show"),1500); }
 
-function renderAll(){ renderRecent();
+function refreshDetailsList(){
+  const dl=$("#detailsList"); if(!dl) return;
+  const counts={};
+  entries.forEach(e=>{ const d=(e.details||"").trim(); if(d) counts[d]=(counts[d]||0)+1; });
+  const opts=Object.keys(counts).sort((a,b)=> counts[b]-counts[a] || a.localeCompare(b)).slice(0,150);
+  dl.innerHTML=opts.map(d=>`<option value="${d.replace(/&/g,"&amp;").replace(/"/g,"&quot;")}"></option>`).join("");
+}
+// Most-used category + source for a given details string (e.g. "La Colombe" → Coffee, Amex)
+function suggestFor(detail){
+  const d=(detail||"").trim().toLowerCase(); if(!d) return null;
+  const cat={}, src={};
+  entries.forEach(e=>{
+    if((e.details||"").trim().toLowerCase()!==d) return;
+    if(e.category) cat[e.category]=(cat[e.category]||0)+1;
+    if(e.source) src[e.source]=(src[e.source]||0)+1;
+  });
+  const top=o=>{ let k=null,m=0; for(const x in o){ if(o[x]>m){m=o[x];k=x;} } return k; };
+  return {category:top(cat), source:top(src)};
+}
+function renderAll(){ refreshDetailsList(); renderRecent();
   if($("#view-log").classList.contains("active")) renderLog();
   if($("#view-trends").classList.contains("active")) renderTrends();
   if($("#view-cats").classList.contains("active")) renderCats(); }
 
-buildAdd(); buildLog(); buildEdit(); renderRecent();
+function setupCatFilter(rootId, set, onChange){
+  const root=$("#"+rootId); if(!root) return;
+  const btn=root.querySelector(".catfilter-btn");
+  const panel=root.querySelector(".catfilter-panel");
+  const chips=root.querySelector(".catfilter-chips");
+  const clearBtn=root.querySelector(".catfilter-clear");
+  chips.innerHTML = CONFIG.categories.map(c=>
+    `<button class="chip mini" data-cat="${c.name}">${c.icon} ${c.name}</button>`).join("");
+  const label=()=>{ btn.textContent = (set.size===0?"All categories":`${set.size} categor${set.size===1?"y":"ies"} selected`)+" ▾"; };
+  const paint=()=>{ chips.querySelectorAll(".chip").forEach(x=>x.classList.toggle("active",set.has(x.dataset.cat))); label(); };
+  chips.querySelectorAll(".chip").forEach(ch=>{
+    ch.onclick=()=>{ const c=ch.dataset.cat; set.has(c)?set.delete(c):set.add(c); paint(); onChange(); };
+  });
+  clearBtn.onclick=()=>{ set.clear(); paint(); onChange(); };
+  btn.onclick=()=>panel.classList.toggle("hidden");
+  paint();
+}
+
+buildAdd(); buildLog(); buildEdit(); renderRecent(); refreshDetailsList();
+setupCatFilter("trendCatFilter", trendCats, ()=>{ deepCat=null; renderTrends(); });
+setupCatFilter("catCatFilter", catCats, renderCats);
 
 /* ---------------------- Firebase + cloud sync --------------------- */
 const firebaseConfig = {
