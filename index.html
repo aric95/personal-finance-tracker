@@ -1102,7 +1102,7 @@ function refreshDetailsList(){
   const dl=$("#detailsList"); if(!dl) return;
   const counts={};
   entries.forEach(e=>{ const d=(e.details||"").trim(); if(d) counts[d]=(counts[d]||0)+1; });
-  const opts=Object.keys(counts).sort((a,b)=> counts[b]-counts[a] || a.localeCompare(b)).slice(0,150);
+  const opts=Object.keys(counts).sort((a,b)=> counts[b]-counts[a] || a.localeCompare(b)).slice(0,500);
   dl.innerHTML=opts.map(d=>`<option value="${d.replace(/&/g,"&amp;").replace(/"/g,"&quot;")}"></option>`).join("");
 }
 // Most-used category + source for a given details string (e.g. "La Colombe" → Coffee, Amex)
