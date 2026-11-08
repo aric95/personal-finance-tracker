@@ -50,6 +50,42 @@
   .brand{font-size:20px;font-weight:700;letter-spacing:-.03em}
   .brand .dot{color:var(--accent)}
   .head-meta{font-size:12px;color:var(--muted);font-weight:500}
+  .head-right{display:flex;align-items:center;gap:10px}
+  .meter{display:inline-flex;align-items:center;gap:4px;background:var(--card);border:1px solid var(--line-strong);
+    border-radius:11px;padding:3px 3px 3px 4px;max-width:150px}
+  .meter.hidden{display:none}
+  .meter-sel{border:none;background:none;font-family:var(--font);font-size:11.5px;font-weight:600;
+    color:var(--muted);max-width:74px;text-overflow:ellipsis;-webkit-appearance:none;appearance:none;
+    padding:4px 2px;cursor:pointer;outline:none}
+  .meter-pct{font-family:var(--num);font-weight:700;font-size:13px;padding:4px 8px;border-radius:8px;
+    letter-spacing:-.02em;min-width:40px;text-align:center;color:#fff;background:var(--muted)}
+  .meter-pct.green{background:var(--accent)}
+  .meter-pct.yellow{background:var(--amber)}
+  .meter-pct.red{background:var(--danger)}
+  .meter-pct.none{background:var(--line-strong);color:var(--muted)}
+  .icon-btn{display:flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:11px;
+    border:1px solid var(--line-strong);background:var(--card);color:var(--ink-soft);cursor:pointer;padding:0}
+  .icon-btn:active{background:var(--line)}
+
+  /* budgets */
+  .budget-head h2{font-size:19px;font-weight:700;letter-spacing:-.02em;margin:4px 0 6px}
+  .budget-head p{font-size:13.5px;color:var(--muted);line-height:1.5;margin:0 0 4px}
+  .budget-total{margin-top:18px}
+  .binput{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--line-strong);
+    border-radius:12px;padding:0 14px}
+  .binput .bcur{font-size:17px;font-weight:600;color:var(--muted)}
+  .binput input{border:none;background:none;padding:14px 0;font-size:17px}
+  .binput input:focus{outline:none}
+  .binput:focus-within{border-color:var(--accent)}
+  .brow{display:flex;align-items:center;gap:12px;padding:11px 2px;border-bottom:1px solid var(--line)}
+  .brow .bname{flex:1;font-size:14.5px;font-weight:600;display:flex;align-items:center;gap:9px;min-width:0}
+  .brow .bmini{display:flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--line-strong);
+    border-radius:10px;padding:0 11px;width:130px}
+  .brow .bmini .bcur{font-size:14px;color:var(--muted);font-weight:600}
+  .brow .bmini input{border:none;background:none;padding:10px 0;font-size:14px;width:100%;
+    font-family:var(--num);text-align:right}
+  .brow .bmini input:focus{outline:none}
+  .brow .bmini:focus-within{border-color:var(--accent)}
 
   .view{display:none;padding:4px 16px 24px;animation:fade .18s ease}
   .view.active{display:block}
@@ -322,7 +358,18 @@
 
 <header class="app">
   <div class="brand">Ledger<span class="dot">.</span></div>
-  <div class="head-meta" id="headMeta"></div>
+  <div class="head-right">
+    <div class="meter" id="budgetMeter" title="Budget used this month">
+      <select class="meter-sel" id="meterCat" aria-label="Budget category"></select>
+      <span class="meter-pct" id="meterPct">—</span>
+    </div>
+    <button class="icon-btn" id="budgetBtn" aria-label="Budgets" title="Budgets">
+      <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.8">
+        <path d="M3 9.5 12 4l9 5.5M5 10.5V19h14v-8.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M9.5 19v-4.5h5V19" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div class="head-meta" id="headMeta"></div>
+  </div>
 </header>
 
 <!-- ============ ADD ============ -->
@@ -513,6 +560,25 @@
   </div>
 </div>
 
+<!-- ============ BUDGETS (opened from header) ============ -->
+<section class="view" id="view-budget">
+  <button class="back-link" id="budgetBack">‹ Back</button>
+  <div class="budget-head">
+    <h2>Monthly budgets</h2>
+    <p>Set a monthly cap for your total spend and any categories you want to watch. Leave a field blank to skip it. Amounts are editable anytime. Your usage shows live in the header meter at the top of the app.</p>
+  </div>
+
+  <div class="field budget-total">
+    <label>Total monthly budget</label>
+    <div class="binput"><span class="bcur">$</span><input id="bTotal" class="txt num" type="text" inputmode="decimal" placeholder="e.g. 3000"></div>
+  </div>
+
+  <div class="section-head"><h2>Per category</h2><span class="aux">optional</span></div>
+  <div id="bCats"></div>
+
+  <button class="save-btn" id="bSave">Save budgets</button>
+</section>
+
 <!-- ============ NAV ============ -->
 <nav class="tabs" id="tabs">
   <button data-view="add" class="active">
@@ -630,15 +696,18 @@ function buildAdd(){
       validate(); };
   });
   $("#amount").addEventListener("input",validate);
-  $("#details").addEventListener("change",()=>{
+  const applyAddSuggest=()=>{
     const s=suggestFor($("#details").value); if(!s) return;
     if(s.source) $("#source").value=s.source;
     if(s.category && sel.type==="expense"){
-      const match=[...$("#catChips").querySelectorAll(".chip")].find(x=>x.dataset.cat===s.category);
+      const match=chipByCat($("#catChips"), s.category);
       if(match){ $("#catChips").querySelectorAll(".chip").forEach(x=>x.classList.remove("active"));
-        match.classList.add("active"); sel.cat=s.category; validate(); }
+        match.classList.add("active"); sel.cat=match.dataset.cat; validate(); }
     }
-  });
+  };
+  // fire on change (blur) and whenever the field exactly matches a known merchant (datalist pick / finished typing)
+  $("#details").addEventListener("change",applyAddSuggest);
+  $("#details").addEventListener("input",()=>{ if(isKnownDetail($("#details").value)) applyAddSuggest(); });
 }
 function validate(){
   const a=parseFloat($("#amount").value);
@@ -758,15 +827,17 @@ function buildEdit(){
       ch.classList.add("active"); edit.cat=ch.dataset.cat; };
   });
   $("#eTypeSeg").querySelectorAll("button").forEach(b=>{ b.onclick=()=>setEditType(b.dataset.type); });
-  $("#eDetails").addEventListener("change",()=>{
+  const applyEditSuggest=()=>{
     const s=suggestFor($("#eDetails").value); if(!s) return;
     if(s.source) $("#eSource").value=s.source;
     if(s.category && edit.type==="expense"){
-      const match=[...$("#eCat").querySelectorAll(".chip")].find(x=>x.dataset.cat===s.category);
+      const match=chipByCat($("#eCat"), s.category);
       if(match){ $("#eCat").querySelectorAll(".chip").forEach(x=>x.classList.remove("active"));
-        match.classList.add("active"); edit.cat=s.category; }
+        match.classList.add("active"); edit.cat=match.dataset.cat; }
     }
-  });
+  };
+  $("#eDetails").addEventListener("change",applyEditSuggest);
+  $("#eDetails").addEventListener("input",()=>{ if(isKnownDetail($("#eDetails").value)) applyEditSuggest(); });
   $("#eSave").onclick=saveEdit; $("#eDelete").onclick=deleteEdit; $("#eClose").onclick=closeEdit;
   $("#modal").onclick=(ev)=>{ if(ev.target===$("#modal")) closeEdit(); };
 }
@@ -912,14 +983,17 @@ function renderTrends(){
 }
 
 /* --------------------------- CATEGORIES --------------------------- */
-function earliestDate(){ let m=null; entries.forEach(e=>{ if(e.type!=="payment" && (!m||e.date<m)) m=e.date; }); return m; }
 function catSpan(){
-  const e=earliestDate(); if(!e) return 0;
-  const d=parse(e), now=new Date();
-  const raw = catMode==="week"
-    ? Math.round((mondayOf(now)-mondayOf(d))/(7*86400000))
-    : (now.getFullYear()-d.getFullYear())*12 + (now.getMonth()-d.getMonth());
-  return Math.min(Math.max(raw,0),120);
+  // furthest-back period that actually has a spendable entry (robust to any single bad date)
+  const now=new Date(); let back=0;
+  spendable().forEach(e=>{
+    const d=parse(e.date); if(isNaN(d.getTime())) return;
+    const b = catMode==="week"
+      ? Math.round((mondayOf(now)-mondayOf(d))/(7*86400000))
+      : (now.getFullYear()-d.getFullYear())*12 + (now.getMonth()-d.getMonth());
+    if(b>back) back=b;
+  });
+  return Math.min(back,240);
 }
 function buildCatPeriods(){
   const sel=$("#catPeriodSel"); if(!sel) return;
@@ -1117,10 +1191,21 @@ function suggestFor(detail){
   const top=o=>{ let k=null,m=0; for(const x in o){ if(o[x]>m){m=o[x];k=x;} } return k; };
   return {category:top(cat), source:top(src)};
 }
+// true once the typed value exactly matches a details string already on record
+function isKnownDetail(detail){
+  const d=(detail||"").trim().toLowerCase(); if(!d) return false;
+  return entries.some(e=>(e.details||"").trim().toLowerCase()===d);
+}
+// find a category chip tolerant of case/whitespace differences in the stored name
+function chipByCat(container, name){
+  const n=(name||"").trim().toLowerCase();
+  return [...container.querySelectorAll(".chip")].find(x=>x.dataset.cat.trim().toLowerCase()===n) || null;
+}
 function renderAll(){ refreshDetailsList(); renderRecent();
   if($("#view-log").classList.contains("active")) renderLog();
   if($("#view-trends").classList.contains("active")) renderTrends();
-  if($("#view-cats").classList.contains("active")) renderCats(); }
+  if($("#view-cats").classList.contains("active")) renderCats();
+  if(typeof renderMeter==="function") renderMeter(); }
 
 function setupCatFilter(rootId, set, onChange){
   const root=$("#"+rootId); if(!root) return;
@@ -1146,6 +1231,94 @@ function setupCatFilter(rootId, set, onChange){
 buildAdd(); buildLog(); buildEdit(); renderRecent(); refreshDetailsList();
 setupCatFilter("trendCatFilter", trendCats, ()=>{ deepCat=null; renderTrends(); });
 setupCatFilter("catCatFilter", catCats, ()=>{ catDeep=null; renderCats(); });
+
+/* ----------------------------- BUDGETS ---------------------------- */
+const BKEY="ledger_budgets_v1";       // {total:number|null, cats:{name:number|null}}
+let budgets=loadBudgets();
+function loadBudgets(){ try{ return JSON.parse(localStorage.getItem(BKEY)) || {total:null,cats:{}}; }
+  catch(e){ return {total:null,cats:{}}; } }
+function saveBudgetsLocal(){ try{ localStorage.setItem(BKEY,JSON.stringify(budgets)); }catch(e){} }
+
+function buildBudgetForm(){
+  $("#bCats").innerHTML = CONFIG.categories.map(c=>
+    `<div class="brow"><div class="bname">${c.icon} ${c.name}</div>
+      <div class="bmini"><span class="bcur">${cur}</span>
+        <input class="bcat num" data-cat="${c.name}" type="text" inputmode="decimal" placeholder="—"></div></div>`).join("");
+}
+function fillBudgetForm(){
+  $("#bTotal").value = budgets.total!=null ? budgets.total : "";
+  $("#bCats").querySelectorAll(".bcat").forEach(inp=>{
+    const v=budgets.cats[inp.dataset.cat]; inp.value = v!=null ? v : "";
+  });
+}
+function readBudgetForm(){
+  const parse1=v=>{ const n=parseFloat(String(v).replace(/[^0-9.]/g,"")); return (isFinite(n)&&n>0)?Math.round(n*100)/100:null; };
+  const b={ total:parse1($("#bTotal").value), cats:{} };
+  $("#bCats").querySelectorAll(".bcat").forEach(inp=>{ const n=parse1(inp.value); if(n!=null) b.cats[inp.dataset.cat]=n; });
+  return b;
+}
+function putBudgets(b){
+  budgets=b; saveBudgetsLocal();
+  if(user && db){ db.collection("users").doc(user.uid).collection("meta").doc("budgets")
+    .set({...b, updatedAt:Date.now()}).catch(er=>console.warn("budget save",er)); }
+}
+
+// current calendar-month expense totals (payments excluded)
+function monthSpend(){
+  const ref=new Date(); const byCat={}; let total=0;
+  entries.forEach(e=>{ if(e.type==="payment") return;
+    if(!sameMonth(e.date,ref)) return;
+    total+=e.amount; if(e.category) byCat[e.category]=(byCat[e.category]||0)+e.amount; });
+  return {total, byCat};
+}
+
+// open/close budget view (opened from header, not bottom nav)
+let prevView="add";
+function openBudget(){
+  const act=document.querySelector(".view.active");
+  prevView = act ? act.id.replace("view-","") : "add";
+  document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));
+  $("#view-budget").classList.add("active");
+  fillBudgetForm(); window.scrollTo(0,0);
+}
+function closeBudget(){
+  document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));
+  const back=$("#view-"+prevView)||$("#view-add"); back.classList.add("active");
+  window.scrollTo(0,0);
+}
+$("#budgetBtn").onclick=openBudget;
+$("#budgetBack").onclick=closeBudget;
+$("#bSave").onclick=()=>{ putBudgets(readBudgetForm()); buildMeterOptions(); renderMeter();
+  toast("Budgets saved"); closeBudget(); };
+
+// ---- header budget meter ----
+let meterSel="__all__";
+function hasAnyBudget(){ return budgets && (budgets.total!=null || Object.keys(budgets.cats||{}).length>0); }
+function buildMeterOptions(){
+  const sel=$("#meterCat"); if(!sel) return;
+  const budgeted=CONFIG.categories.map(c=>c.name).filter(n=>budgets.cats && budgets.cats[n]!=null);
+  const opts=[`<option value="__all__">All</option>`]
+    .concat(budgeted.map(n=>`<option value="${n}">${n}</option>`)).join("");
+  sel.innerHTML=opts;
+  if(meterSel!=="__all__" && !budgeted.includes(meterSel)) meterSel="__all__";
+  sel.value=meterSel;
+}
+function renderMeter(){
+  const meter=$("#budgetMeter"), pctEl=$("#meterPct"); if(!meter) return;
+  if(!hasAnyBudget()){ meter.classList.add("hidden"); return; }
+  meter.classList.remove("hidden");
+  const {total,byCat}=monthSpend();
+  let cap, spent;
+  if(meterSel==="__all__"){ cap=budgets.total; spent=total; }
+  else { cap=budgets.cats[meterSel]; spent=byCat[meterSel]||0; }
+  if(cap==null||cap<=0){ pctEl.textContent="—"; pctEl.className="meter-pct none"; return; }
+  const pct=Math.round(spent/cap*100);
+  const cls = pct<40?"green" : pct<=80?"yellow":"red";
+  pctEl.textContent=`${pct}%`; pctEl.className=`meter-pct ${cls}`;
+}
+$("#meterCat").onchange=()=>{ meterSel=$("#meterCat").value; renderMeter(); };
+
+buildBudgetForm(); buildMeterOptions(); renderMeter();
 
 /* ---------------------- Firebase + cloud sync --------------------- */
 const firebaseConfig = {
@@ -1179,14 +1352,22 @@ function removeEntry(id){
   else { entries=entries.filter(x=>x.id!==id); save(); renderAll(); }
 }
 
+let budgetUnsub=null;
 function startSync(){
   stopSync();
   unsub = entriesCol().onSnapshot(snap=>{
     entries = snap.docs.map(d=>({id:d.id, ...d.data()}));
     save(); renderAll();
   }, er=>console.warn("sync", er));
+  budgetUnsub = db.collection("users").doc(user.uid).collection("meta").doc("budgets")
+    .onSnapshot(doc=>{
+      if(doc.exists){ const d=doc.data(); budgets={total:(d.total!=null?d.total:null), cats:d.cats||{}};
+        saveBudgetsLocal(); buildMeterOptions(); renderMeter();
+        if($("#view-budget").classList.contains("active")) fillBudgetForm();
+      }
+    }, er=>console.warn("budget sync", er));
 }
-function stopSync(){ if(unsub){ unsub(); unsub=null; } }
+function stopSync(){ if(unsub){ unsub(); unsub=null; } if(budgetUnsub){ budgetUnsub(); budgetUnsub=null; } }
 
 function signIn(){
   auth.signInWithPopup(provider).catch(err=>{
