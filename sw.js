@@ -1,5 +1,5 @@
 /* Ledger service worker — bump CACHE when you redeploy to refresh the offline copy */
-const CACHE = 'ledger-v1';
+const CACHE = 'ledger-v6';
 const SHELL = [
   './',
   './index.html',
