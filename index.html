@@ -51,12 +51,21 @@
   .brand .dot{color:var(--accent)}
   .head-meta{font-size:12px;color:var(--muted);font-weight:500}
   .head-right{display:flex;align-items:center;gap:10px}
-  .meter{display:inline-flex;align-items:center;gap:4px;background:var(--card);border:1px solid var(--line-strong);
-    border-radius:11px;padding:3px 3px 3px 4px;max-width:150px}
-  .meter.hidden{display:none}
-  .meter-sel{border:none;background:none;font-family:var(--font);font-size:11.5px;font-weight:600;
-    color:var(--muted);max-width:74px;text-overflow:ellipsis;-webkit-appearance:none;appearance:none;
-    padding:4px 2px;cursor:pointer;outline:none}
+  .meter-wrap{position:relative}
+  .meter{display:inline-flex;align-items:center;gap:5px;background:var(--card);border:1px solid var(--line-strong);
+    border-radius:11px;padding:3px 7px 3px 8px;cursor:pointer;font-family:var(--font)}
+  .meter-lbl{font-size:11.5px;font-weight:600;color:var(--muted)}
+  .meter-caret{font-size:10px;color:var(--muted)}
+  .meter-panel{position:absolute;right:0;top:calc(100% + 8px);width:min(300px,calc(100vw - 32px));z-index:45;
+    background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:0 12px 32px rgba(18,33,30,.18);
+    padding:8px 4px;max-height:70vh;overflow-y:auto}
+  .meter-panel.hidden{display:none}
+  .mp-head{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600;padding:4px 10px 6px}
+  .mp-row{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:9px}
+  .mp-row.total{background:var(--paper);margin-bottom:4px}
+  .mp-name{flex:1;min-width:0;font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .mp-amt{font-size:11.5px;color:var(--muted);font-family:var(--num);white-space:nowrap}
+  .mp-row .meter-pct{font-size:12px;min-width:46px;padding:3px 7px}
   .meter-pct{font-family:var(--num);font-weight:700;font-size:13px;padding:4px 8px;border-radius:8px;
     letter-spacing:-.02em;min-width:40px;text-align:center;color:#fff;background:var(--muted)}
   .meter-pct.green{background:var(--accent)}
@@ -359,9 +368,13 @@
 <header class="app">
   <div class="brand">Ledger<span class="dot">.</span></div>
   <div class="head-right">
-    <div class="meter" id="budgetMeter" title="Budget used this month">
-      <select class="meter-sel" id="meterCat" aria-label="Budget category"></select>
-      <span class="meter-pct" id="meterPct">—</span>
+    <div class="meter-wrap">
+      <button class="meter" id="budgetMeter" title="Budget used this month" aria-label="Budget usage by category">
+        <span class="meter-lbl">Total</span>
+        <span class="meter-pct" id="meterPct">—</span>
+        <span class="meter-caret">▾</span>
+      </button>
+      <div class="meter-panel hidden" id="meterPanel"></div>
     </div>
     <button class="icon-btn" id="budgetBtn" aria-label="Budgets" title="Budgets">
       <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.8">
@@ -1089,11 +1102,23 @@ function renderCats(){
 $("#exportBtn").onclick=()=>{
   if(!entries.length){ toast("Nothing to export"); return; }
   const head=["date","amount","category","details","source","type"];
-  const rows=entries.map(e=>head.map(k=>`"${String(e[k]??"").replace(/"/g,'""')}"`).join(","));
+  const sorted=[...entries].sort((a,b)=>a.date.localeCompare(b.date)||String(a.id).localeCompare(String(b.id)));
+  const rows=sorted.map(e=>head.map(k=>`"${String(k==="type"?(e.type||"expense"):(e[k]??"")).replace(/"/g,'""')}"`).join(","));
   const csv=[head.join(","),...rows].join("\n");
-  const blob=new Blob([csv],{type:"text/csv"}); const url=URL.createObjectURL(blob);
-  const a=document.createElement("a"); a.href=url; a.download=`ledger-${todayStr()}.csv`; a.click();
-  URL.revokeObjectURL(url); toast("Exported");
+  const name=`ledger-${todayStr()}.csv`;
+  const blob=new Blob([csv],{type:"text/csv"});
+  // installed iPhone apps can't save blob downloads, so hand the file to the share sheet instead
+  const standalone = window.matchMedia && matchMedia("(display-mode: standalone)").matches || navigator.standalone;
+  try{
+    const file=new File([blob],name,{type:"text/csv"});
+    if(standalone && navigator.canShare && navigator.canShare({files:[file]})){
+      navigator.share({files:[file],title:name}).then(()=>toast("Exported")).catch(()=>{});
+      return;
+    }
+  }catch(e){}
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a"); a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),2000); toast(`Exported ${sorted.length} entries`);
 };
 $("#importBtn").onclick=()=>$("#importFile").click();
 $("#importFile").onchange=(ev)=>{
@@ -1291,34 +1316,34 @@ $("#budgetBack").onclick=closeBudget;
 $("#bSave").onclick=()=>{ putBudgets(readBudgetForm()); buildMeterOptions(); renderMeter();
   toast("Budgets saved"); closeBudget(); };
 
-// ---- header budget meter ----
-let meterSel="__all__";
-function hasAnyBudget(){ return budgets && (budgets.total!=null || Object.keys(budgets.cats||{}).length>0); }
-function buildMeterOptions(){
-  const sel=$("#meterCat"); if(!sel) return;
-  const budgeted=CONFIG.categories.map(c=>c.name).filter(n=>budgets.cats && budgets.cats[n]!=null);
-  const opts=[`<option value="__all__">All</option>`]
-    .concat(budgeted.map(n=>`<option value="${n}">${n}</option>`)).join("");
-  sel.innerHTML=opts;
-  if(meterSel!=="__all__" && !budgeted.includes(meterSel)) meterSel="__all__";
-  sel.value=meterSel;
-}
-function renderMeter(){
-  const meter=$("#budgetMeter"), pctEl=$("#meterPct"); if(!meter) return;
-  if(!hasAnyBudget()){ meter.classList.add("hidden"); return; }
-  meter.classList.remove("hidden");
-  const {total,byCat}=monthSpend();
-  let cap, spent;
-  if(meterSel==="__all__"){ cap=budgets.total; spent=total; }
-  else { cap=budgets.cats[meterSel]; spent=byCat[meterSel]||0; }
-  if(cap==null||cap<=0){ pctEl.textContent="—"; pctEl.className="meter-pct none"; return; }
+// ---- header budget meter + breakdown panel ----
+function pctInfo(spent,cap){
+  if(cap==null||cap<=0) return {txt:"N/A", cls:"none"};
   const pct=Math.round(spent/cap*100);
-  const cls = pct<40?"green" : pct<=80?"yellow":"red";
-  pctEl.textContent=`${pct}%`; pctEl.className=`meter-pct ${cls}`;
+  return {txt:`${pct}%`, cls: pct<40?"green" : pct<=80?"yellow" : "red"};
 }
-$("#meterCat").onchange=()=>{ meterSel=$("#meterCat").value; renderMeter(); };
+function buildMeterOptions(){}   // kept as a no-op for existing callers
+function renderMeter(){
+  const pctEl=$("#meterPct"); if(!pctEl) return;
+  const {total,byCat}=monthSpend();
+  const t=pctInfo(total, budgets.total);
+  pctEl.textContent=t.txt; pctEl.className=`meter-pct ${t.cls}`;
+  const panel=$("#meterPanel"); if(!panel) return;
+  const row=(name,icon,spent,cap,extra)=>{ const p=pctInfo(spent,cap);
+    const amt = cap!=null&&cap>0 ? `${cur}${Math.round(spent).toLocaleString()} / ${cur}${Math.round(cap).toLocaleString()}`
+                                 : `${cur}${Math.round(spent).toLocaleString()} spent`;
+    return `<div class="mp-row ${extra||""}"><div class="mp-name">${icon} ${esc(name)}</div>
+      <span class="mp-amt">${amt}</span><span class="meter-pct ${p.cls}">${p.txt}</span></div>`; };
+  const now=new Date();
+  panel.innerHTML = `<div class="mp-head">${MON[now.getMonth()]} ${now.getFullYear()} · budget used</div>`+
+    row("Total","Σ",total,budgets.total,"total")+
+    CONFIG.categories.map(c=>row(c.name,c.icon,byCat[c.name]||0,(budgets.cats||{})[c.name])).join("");
+}
+$("#budgetMeter").onclick=(ev)=>{ ev.stopPropagation(); renderMeter(); $("#meterPanel").classList.toggle("hidden"); };
+$("#meterPanel").onclick=(ev)=>ev.stopPropagation();
+document.addEventListener("click",()=>{ const p=$("#meterPanel"); if(p) p.classList.add("hidden"); });
 
-buildBudgetForm(); buildMeterOptions(); renderMeter();
+buildBudgetForm(); renderMeter();
 
 /* ---------------------- Firebase + cloud sync --------------------- */
 const firebaseConfig = {
